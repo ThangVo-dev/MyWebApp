@@ -1,0 +1,79 @@
+@model List<WebApp.Admin.Models.ProductViewModel>
+
+<h1>Product List</h1>
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-danger" id="successMessage">
+        @TempData["SuccessMessage"]
+    </div>
+}
+<a asp-action="Create">Create New Product</a>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Create Date</th>
+            <th>Category</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var product in Model)
+        {
+            <tr>
+                <td>@product.Name</td>
+                <td>@product.CreateAdd?.ToString("yyyy-MM-dd")</td>
+                <td>@product.CategoryName</td>
+                <td>
+                    <a asp-action="Details" asp-route-id="@product.Id">Detail</a> |
+                    <a asp-action="Edit" asp-route-id="@product.Id">Edit</a> |
+                    <a href="javascript:void(0);" onClick="showDeleteConfirm('@product.Id', '@product.Name')">Delete</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<!-- Modal -->
+<div id="deleteConfirmModal" class="modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"
+                    onclick="$('#deleteConfirmModal').modal('hide');">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p id="deleteConfirmMessage">[Confirm text message]</p>
+            </div>
+            <div class="modal-footer">
+                <form id="deleteForm" method="post" asp-action="DeleteConfirmed" asp-controller="Product">
+                    <input type="hidden" id="deleteProductId" name="id" />
+                    <button type="submit" class="btn btn-danger">Yes</button>
+                </form>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal"
+                    onclick="$('#deleteConfirmModal').modal('hide');">No</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function showDeleteConfirm(productId, productName) {
+            document.getElementById('deleteProductId').value = productId;
+            document.getElementById('deleteConfirmMessage').textContent =
+                `Are you sure you want to delete the product "${productName}"?`;
+            $('#deleteConfirmModal').modal('show');
+        }
+
+        setTimeout(function () {
+            var successMessage = document.getElementById("successMessage");
+            if (successMessage) {
+                successMessage.style.display = "none";
+            }
+        }, 3000);
+    </script>
+}
