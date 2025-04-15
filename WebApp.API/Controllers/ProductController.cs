@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Mvc;
 using WebApp.Data.Entities;
 using WebApp.Service.Enums;
 using WebApp.Shared.Requests;
-using WebApp.Shared.Responses;
 
 namespace WebApp.API.Controllers
 {
@@ -25,38 +24,28 @@ namespace WebApp.API.Controllers
         // GET: api/Product
         [HttpGet]
         [Route("get-all")]
-        public async Task<ActionResult<IEnumerable<ProductResponse>>> GetProducts()
+        public async Task<IActionResult> GetAllProduct()
         {
-            // return await _context.Products.ToListAsync();
-            var productService = await _productService.GetProductsAsync();
-            return productService;
+            var result = await _productService.GetAllProductAsync();
+            return result;
         }
 
         // GET: api/Product/5
         [HttpGet]
         [Route("get/{id}")]
-        public async Task<ActionResult<Product>> GetProduct(string id)
+        public async Task<IActionResult> GetProductById(string id)
         {
-            var productService = await _productService.GetProductByIdAsync(id);
-            if(productService.StatusCode == ApiStatusCode.NotFound)
-            {
-                return NotFound(new { Message = productService.Message });
-            }
-            return Ok(productService.Data);
+            var result = await _productService.GetProductByIdAsync(id);
+            return result;
         }
 
         // POST: api/Product
         [HttpPost]
         [Route("create")]
-        public async Task<ActionResult<Product>> CreateProduct(ProductRequest productRequest)
+        public async Task<IActionResult> CreateProduct(ProductRequest productRequest)
         {
-            var productService = await _productService.CreateProductAsync(productRequest);
-            if (productService.StatusCode == ApiStatusCode.BadRequest)
-            {
-                return BadRequest(new { Message = productService.Message });
-            }
-
-            return CreatedAtAction(nameof(GetProduct), new { id = productService?.Data?.Id }, productService?.Data);
+            var result = await _productService.CreateProductAsync(productRequest);
+            return result;
         }
 
         // PUT: api/Product/5
@@ -65,38 +54,17 @@ namespace WebApp.API.Controllers
         public async Task<IActionResult> UpdateProduct(string id, ProductRequest productRequest)
         {
             var productService = await _productService.UpdateProductAsync(id, productRequest);
-            if (productService.StatusCode == ApiStatusCode.NotFound)
-            {
-                return NotFound(new { Message = productService.Message });
-            }
-            else if (productService.StatusCode == ApiStatusCode.BadRequest)
-            {
-                return BadRequest(new { Message = productService.Message });
-            }
-
-            return Ok(new { Message = productService.Message });
+            return productService;
         }
 
         // DELETE: api/Product/5
         [HttpDelete]
         [Route("delete/{id}")]
-        public async Task<IActionResult> DeleteProduct(string id)
+        public async Task<IActionResult> DeleteProduct(string? id)
         {
-            var product = await _context.Products.FindAsync(id);
-            if (product == null)
-            {
-                return NotFound();
-            }
-
-            _context.Products.Remove(product);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
+            var productService = await _productService.DeleteProductAsync(id);
+            return productService;
         }
 
-        private bool ProductExists(string id)
-        {
-            return _context.Products.Any(e => e.Id == id);
-        }
     }
 }

@@ -5,13 +5,16 @@
         "buildtransitive",
         "categoryproduct",
         "HmacSha256",
+        "HSTS",
         "jquery",
+        "labelledby",
         "msil",
         "Newtonsoft",
         "Reseponse",
         "stylesheet",
-        "UseHsts",
-        "toggleable"
+        "tabindex",
+        "toggleable",
+        "UseHsts"
     ],
     "files.defaultLanguage": "csharp"
 }

@@ -1,13 +1,6 @@
-@model WebApp.Admin.Models.LoginViewModel
+@model WebApp.Shared.Models.Requests.LoginRequest
 
 <h2>Login</h2>
-
-@if (TempData["ErrorMessage"] != null)
-{
-    <div class="alert alert-danger" id="errorMessage">
-        @TempData["ErrorMessage"]
-    </div>
-}
 
 <form asp-action="Login" method="post">
     <div class="form-group">
@@ -38,12 +31,3 @@
         <i class="fab fa-facebook-f"></i> Login with Facebook
     </a>
 </div>
-
-<script>
-    setTimeout(function () {
-        var errorMessage = document.getElementById("errorMessage");
-        if (errorMessage) {
-            errorMessage.style.display = "none";
-        }
-    }, 3000);
-</script>

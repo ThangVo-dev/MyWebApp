@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System.Text;
 using WebApp.Admin.Models;
 
@@ -43,15 +44,11 @@ namespace WebApp.MVC.Controllers
                 var response = await client.GetAsync("api/product/get-all");
                 if (response.IsSuccessStatusCode)
                 {
-                    var data = await response.Content.ReadAsStringAsync();
-                    var products = JsonConvert.DeserializeObject<List<ProductViewModel>>(data);
-                    // if (products != null)
-                    // {
-                    //     foreach (var item in products)
-                    //     {
-                    //         item.CategoryName = (await GetCategoryById(item.CategoryId))?.Name;
-                    //     }
-                    // }
+                    var jsonResult = await response.Content.ReadAsStringAsync();
+                    var data = JObject.Parse(jsonResult)["data"]?.ToString();
+                    
+                    var products = JsonConvert.DeserializeObject<List<ProductViewModel>>(data ?? string.Empty);
+                    
                     return View(products);
                 }
             }

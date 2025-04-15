@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using WebApp.Data.Entities;
+using WebApp.Service.Common;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,6 +28,8 @@ builder.Services.AddControllers();
 // Dependency Injection
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ProductService>();
+builder.Services.AddScoped<UserService>();
+builder.Services.AddScoped<CommonMethod>();
 
 builder.Services.AddDbContext<WebAppContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
