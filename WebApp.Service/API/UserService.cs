@@ -7,6 +7,7 @@ using WebApp.Service.Enums;
 using WebApp.Service.ResultModels;
 using WebApp.Shared.Models.Requests;
 using WebApp.Shared.Models.Responses;
+using WebApp.Shared.Models.User;
 
 namespace AppWeb.Service.API
 {
@@ -43,7 +44,8 @@ namespace AppWeb.Service.API
                             FullName = user?.FullName,
                             PhoneNumber = user?.PhoneNumber,
                             Email = user?.Email,
-                            RoleName = user?.Role?.Name
+                            RoleName = user?.Role?.Name,
+                            AvatarUrl = user?.AvatarUrl,
                         };
 
                         authResult.StatusCode = ApiStatusCode.OK;
@@ -64,17 +66,13 @@ namespace AppWeb.Service.API
             return await ErrorHandler.ExecuteAsync(action);
         }
 
-        public async Task<IActionResult> UpdateProfileAsync(string? id, EditProfileRequest request)
+        public async Task<IActionResult> UpdateProfileAsync(UserMdl request)
         {
             var action = new Func<Task<IActionResult>>(async () =>
             {
                 var apiResult = new ApiResult<UserResponse>();
-                if (string.IsNullOrEmpty(id) || request == null || id != request.Id)
-                {
-                    apiResult.StatusCode = ApiStatusCode.BadRequest;
-                    apiResult.Message = "Invalid user ID or request data";
-                }
-                else if (string.IsNullOrWhiteSpace(request?.FullName))
+                
+                if (string.IsNullOrWhiteSpace(request?.FullName))
                 {
                     apiResult.StatusCode = ApiStatusCode.BadRequest;
                     apiResult.Message = "FullName not empty.";
@@ -85,18 +83,9 @@ namespace AppWeb.Service.API
                     apiResult.StatusCode = ApiStatusCode.BadRequest;
                     apiResult.Message = "PhoneNumber not empty.";
                 }
-
-                // if (!Regex.IsMatch(request?.PhoneNumber, @"^\+?[0-9]{10,15}$"))
-                // {
-                //     return new BadRequestObjectResult(new
-                //     {
-                //         Success = false,
-                //         Message = "Invalid phone number format."
-                //     });
-                // }
                 else
                 {
-                    var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == id);
+                    var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == request.Id);
                     if (user == null)
                     {
                         apiResult.StatusCode = ApiStatusCode.NotFound;
@@ -106,6 +95,7 @@ namespace AppWeb.Service.API
                     {
                         user.FullName = request?.FullName;
                         user.PhoneNumber = request?.PhoneNumber;
+                        user.AvatarUrl = request?.AvatarUrl;
 
                         _context.Users.Update(user);
                         await _context.SaveChangesAsync();
@@ -118,7 +108,8 @@ namespace AppWeb.Service.API
                             UserName = user?.UserName,
                             FullName = user?.FullName,
                             PhoneNumber = user?.PhoneNumber,
-                            Email = user?.Email
+                            Email = user?.Email,
+                            AvatarUrl = user?.AvatarUrl,
                         };
                     }
                 }

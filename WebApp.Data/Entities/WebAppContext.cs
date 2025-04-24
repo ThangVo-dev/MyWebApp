@@ -6,13 +6,17 @@ namespace WebApp.Data.Entities;
 
 public partial class WebAppContext : DbContext
 {
-    public WebAppContext()
-    {
-    }
-
     public WebAppContext(DbContextOptions<WebAppContext> options)
         : base(options)
     {
+    }
+
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        if (!optionsBuilder.IsConfigured)
+        {
+            optionsBuilder.UseNpgsql("Host=localhost;Database=WebApp;Username=postgres;Password=12345");
+        }
     }
 
     public virtual DbSet<CategoryProduct> CategoryProducts { get; set; }
@@ -22,10 +26,6 @@ public partial class WebAppContext : DbContext
     public virtual DbSet<Role> Roles { get; set; }
 
     public virtual DbSet<User> Users { get; set; }
-
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseSqlServer("Server=localhost;Database=WebApp;User Id=sa;Password=12345;TrustServerCertificate=True;");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

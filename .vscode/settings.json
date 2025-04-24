@@ -4,17 +4,24 @@
         "Bootstrapper",
         "buildtransitive",
         "categoryproduct",
+        "enctype",
+        "GOCSPX",
+        "googleusercontent",
         "HmacSha256",
         "HSTS",
         "jquery",
         "labelledby",
         "msil",
         "Newtonsoft",
+        "Npgsql",
         "Reseponse",
         "stylesheet",
         "tabindex",
         "toggleable",
-        "UseHsts"
+        "Tyri",
+        "UseHsts",
+        "vurijkujsg",
+        "wwwroot"
     ],
     "files.defaultLanguage": "csharp"
 }

@@ -49,8 +49,8 @@ namespace AppWeb.Service.API
         {
             var action = new Func<Task<IActionResult>>(async () =>
             {
-                var apiResult = new ApiResult<Product>();
-                var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == id);
+                var apiResult = new ApiResult<ProductResponse>();
+                var product = await _context.Products.Include(c => c.Category).FirstOrDefaultAsync(p => p.Id == id);
 
                 if (product == null)
                 {
@@ -59,11 +59,19 @@ namespace AppWeb.Service.API
                 }
                 else
                 {
+                    var productResponse = new ProductResponse
+                    {
+                        Id = product.Id,
+                        Name = product.Name,
+                        CreateAdd = product.CreateAdd,
+                        CategoryId = product.CategoryId,
+                        CategoryName = product.Category != null ? product.Category.Name : string.Empty,
+                    };
                     apiResult.StatusCode = ApiStatusCode.OK;
-                    apiResult.Data = product;
+                    apiResult.Data = productResponse;
                 }
 
-                var result = _commonMethod.HandleApiResultAsync<Product>(apiResult);
+                var result = _commonMethod.HandleApiResultAsync<ProductResponse>(apiResult);
                 return result;
             });
 
@@ -123,19 +131,19 @@ namespace AppWeb.Service.API
             return await ErrorHandler.ExecuteAsync(action);
         }
 
-        public async Task<IActionResult> UpdateProductAsync(string id, ProductRequest productRequest)
+        public async Task<IActionResult> UpdateProductAsync(ProductRequest productRequest)
         {
             var action = new Func<Task<IActionResult>>(async () =>
             {
                 var apiResult = new ApiResult<string>();
-                if (string.IsNullOrEmpty(id) || productRequest == null || id != productRequest.Id)
+                if (productRequest == null)
                 {
                     apiResult.StatusCode = ApiStatusCode.BadRequest;
-                    apiResult.Message = "Invalid product ID or request data";
+                    apiResult.Message = "Invalid product request data";
                 }
                 else
                 {
-                    var product = await _context.Products.FindAsync(id);
+                    var product = await _context.Products.FindAsync(productRequest.Id);
                     if (product == null)
                     {
                         apiResult.StatusCode = ApiStatusCode.NotFound;

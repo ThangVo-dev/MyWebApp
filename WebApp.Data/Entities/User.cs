@@ -1,5 +1,8 @@
-﻿namespace WebApp.Data.Entities;
+﻿using System.ComponentModel.DataAnnotations.Schema;
 
+namespace WebApp.Data.Entities;
+
+[Table("Users")]
 public partial class User
 {
     public string Id { get; set; } = null!;
@@ -17,6 +20,7 @@ public partial class User
     public string? PasswordHash { get; set; }
 
     public string? PhoneNumber { get; set; }
+    public string? AvatarUrl { get; set; }
 
     public virtual Role? Role { get; set; }
 }

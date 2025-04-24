@@ -1,0 +1,32 @@
+services:
+  webapp-api:
+    build:
+      context: .
+      dockerfile: WebApp.API/Dockerfile
+    container_name: docker-webapp-api
+    ports:
+      - "5000:80"
+    depends_on:
+      - database
+    env_file:
+      - .env
+  
+  webapp-admin:
+    build:
+      context: .
+      dockerfile: WebApp.Admin/Dockerfile
+    container_name: docker-webapp-admin
+    ports:
+      - "5001:80"
+    env_file:
+      - .env
+
+  database:
+    image: postgres:14
+    container_name: docker-webapp-db
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 12345
+      POSTGRES_DB: WebApp

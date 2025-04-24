@@ -8,7 +8,11 @@ using System.Text;
 using WebApp.Service.Common;
 using WebApp.Shared.Models.Common;
 using WebApp.Shared.Models.Requests;
+using WebApp.Shared.Models.Responses;
+using WebApp.Shared.Models.User;
 using WebApp.Shared.Responses;
+using WebApp.Admin.Common;
+using WebApp.Shared.Helpers;
 
 namespace WebApp.MVC.Controllers
 {
@@ -16,11 +20,13 @@ namespace WebApp.MVC.Controllers
     {
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IConfiguration _configuration;
+        private readonly MethodCommon _methodCommon;
 
-        public UserController(IHttpClientFactory httpClientFactory, IConfiguration configuration)
+        public UserController(IHttpClientFactory httpClientFactory, IConfiguration configuration, MethodCommon methodCommon)
         {
-            _configuration = configuration;
+            _methodCommon = methodCommon;
             _httpClientFactory = httpClientFactory;
+            _configuration = configuration;
         }
 
         [HttpGet]
@@ -33,50 +39,63 @@ namespace WebApp.MVC.Controllers
         [HttpPost]
         public async Task<IActionResult> Login(LoginRequest loginRequest)
         {
+            ViewData["IsLoginPage"] = true;
             if (!ModelState.IsValid)
             {
                 return View("Login", loginRequest);
             }
-
-            var client = _httpClientFactory.CreateClient("ProductApi");
-            var content = new StringContent(JsonConvert.SerializeObject(loginRequest), Encoding.UTF8, "application/json");
-            var response = await client.PostAsync("api/user/login", content);
-
-            if (response.IsSuccessStatusCode)
+            else
             {
-                var jsonResult = await response.Content.ReadAsStringAsync();
-                var data = JObject.Parse(jsonResult)["data"]?.ToString();
-                if (string.IsNullOrEmpty(data))
+                var client = _httpClientFactory.CreateClient("WebAppApi");
+                var content = new StringContent(JsonConvert.SerializeObject(loginRequest), Encoding.UTF8, "application/json");
+                var response = await client.PostAsync("api/user/login", content);
+
+                if (response.IsSuccessStatusCode)
                 {
-                    TempData["ErrorMessage"] = "Failed to retrieve token data.";
+                    var jsonResult = await response.Content.ReadAsStringAsync();
+                    var data = JObject.Parse(jsonResult)["data"]?.ToString();
+
+                    var tokenResponse = JsonConvert.DeserializeObject<TokenResponse>(data ?? string.Empty);
+
+                    if (!string.IsNullOrEmpty(tokenResponse?.Token))
+                    {
+                        // Save token to session
+                        // HttpContext.Session.SetString("JwtToken", tokenResponse.Token);
+
+                        var cookieOptions = new CookieOptions
+                        {
+                            HttpOnly = true,
+                            Expires = DateTimeOffset.UtcNow.AddMinutes(30) // or adjust as needed
+                        };
+                        Response.Cookies.Append("JwtToken", tokenResponse.Token, cookieOptions);
+
+                        // Decode the token to extract FullName
+                        var handler = new JwtSecurityTokenHandler();
+                        var jwtToken = handler.ReadJwtToken(tokenResponse.Token);
+
+                        // Save FullName to Cookie instead of Session
+                        var fullName = jwtToken.Claims.FirstOrDefault(c => c.Type == "FullName")?.Value;
+                        var fullNameCookieOptions = new CookieOptions
+                        {
+                            HttpOnly = false,
+                            Expires = DateTimeOffset.UtcNow.AddMinutes(30)
+                        };
+                        Response.Cookies.Append("FullName", fullName ?? "Guest", fullNameCookieOptions);
+
+                        ViewData["IsLoginPage"] = false;
+                        TempData["SuccessMessage"] = $"Login success - Token is valid. Expire in {(jwtToken.ValidTo - DateTime.UtcNow).TotalMinutes:F2} minutes.";
+                        return RedirectToAction("Index", "Product");
+                    }
+
+                    TempData["ErrorMessage"] = "Failed to retrieve token.";
                     return View("Login", loginRequest);
                 }
-
-                var tokenResponse = JsonConvert.DeserializeObject<TokenResponse>(data);
-
-                if (!string.IsNullOrEmpty(tokenResponse?.Token))
+                else
                 {
-                    // Save token to session
-                    HttpContext.Session.SetString("JwtToken", tokenResponse.Token);
-
-                    // Decode the token to extract FullName
-                    var handler = new JwtSecurityTokenHandler();
-                    var jwtToken = handler.ReadJwtToken(tokenResponse.Token);
-                    var fullName = jwtToken.Claims.FirstOrDefault(c => c.Type == "FullName")?.Value;
-
-                    // Save FullName to Session
-                    HttpContext.Session.SetString("FullName", fullName ?? "Guest");
-
-                    TempData["SuccessMessage"] = "Login success";
-                    return RedirectToAction("Index", "Product");
+                    TempData["ErrorMessage"] = "Api login failed.";
+                    return View("Login", loginRequest);
                 }
-
-                TempData["ErrorMessage"] = "Failed to retrieve token.";
-                return View("Login", loginRequest);
             }
-
-            TempData["ErrorMessage"] = "Invalid username or password.";
-            return View("Login", loginRequest);
         }
 
         [HttpGet]
@@ -117,12 +136,25 @@ namespace WebApp.MVC.Controllers
                     Issuer = _configuration["JwtSettings:Issuer"],
                     Audience = _configuration["JwtSettings:Audience"],
                     SigningKey = _configuration["JwtSettings:IssuerSigningKey"],
-                    ExpirationMinutes = 60
+                    ExpirationMinutes = 30
                 };
 
                 var commonMethod = new CommonMethod();
                 var jwtToken = commonMethod.GenerateJwtToken(claimJWTToken);
-                HttpContext.Session.SetString("JwtToken", jwtToken);
+                var cookieOptions = new CookieOptions
+                {
+                    HttpOnly = true,
+                    Expires = DateTimeOffset.UtcNow.AddMinutes(30) // or adjust as needed
+                };
+                Response.Cookies.Append("JwtToken", jwtToken, cookieOptions);
+
+                // Save FullName to Cookie instead of Session
+                var fullNameCookieOptions = new CookieOptions
+                {
+                    HttpOnly = false,
+                    Expires = DateTimeOffset.UtcNow.AddMinutes(30)
+                };
+                Response.Cookies.Append("FullName", name ?? "Guest", fullNameCookieOptions);
             }
             else
             {
@@ -134,14 +166,19 @@ namespace WebApp.MVC.Controllers
             return RedirectToAction("Index", "Product");
         }
 
+
         [HttpPost]
         public async Task<IActionResult> Logout()
         {
-            // Delete the authentication cookie
+            // Sign out any authentication
             await HttpContext.SignOutAsync();
 
-            // Delete the JWT token from session (if any)
-            HttpContext.Session.Remove("JwtToken");
+            // Remove cookies
+            Response.Cookies.Delete("JwtToken");
+            Response.Cookies.Delete("FullName");
+
+            // Clear session just in case
+            HttpContext.Session.Clear();
 
             // Redirect to the Login page
             return RedirectToAction("Login", "User");
@@ -213,7 +250,7 @@ namespace WebApp.MVC.Controllers
                 return View(createUserRequest);
             }
 
-            var client = _httpClientFactory.CreateClient("ProductApi");
+            var client = _httpClientFactory.CreateClient("WebAppApi");
             var content = new StringContent(JsonConvert.SerializeObject(createUserRequest), Encoding.UTF8, "application/json");
             var response = await client.PostAsync("api/user/create", content);
             var responseContent = await response.Content.ReadAsStringAsync();
@@ -230,58 +267,149 @@ namespace WebApp.MVC.Controllers
         }
 
         [HttpGet]
-        public IActionResult EditProfile()
+        public async Task<IActionResult> Profile()
         {
-            var token = HttpContext.Session.GetString("JwtToken");
-            // Decode the token to extract FullName
-            var handler = new JwtSecurityTokenHandler();
-            var jwtToken = handler.ReadJwtToken(token);
-            // var username = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub)?.Value;
-            var fullName = jwtToken.Claims.FirstOrDefault(c => c.Type == "FullName")?.Value;
-            var phoneNumber = jwtToken.Claims.FirstOrDefault(c => c.Type == "PhoneNumber")?.Value;
-            var profile = new EditProfileRequest
+            var client = _httpClientFactory.CreateClient("WebAppApi");
+            var token = Request.Cookies["JwtToken"];
+            var validToken = TokenValidator.IsTokenValid(token, out var msg);
+            if (validToken)
             {
-                FullName = fullName,
-                PhoneNumber = phoneNumber
-            };
+                // Add token to the header if valid
+                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-            return View(profile);
+                var handler = new JwtSecurityTokenHandler();
+                var jwtToken = handler.ReadJwtToken(token);
+                var userId = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Jti)?.Value;
+                var response = await client.GetAsync($"api/user/get/{userId}");
+                if (response.IsSuccessStatusCode)
+                {
+                    var jsonResult = await response.Content.ReadAsStringAsync();
+                    var data = JObject.Parse(jsonResult)["data"]?.ToString();
+                    var user = JsonConvert.DeserializeObject<UserMdl>(data ?? string.Empty);
+                    if (user == null)
+                    {
+                        TempData["ErrorMessage"] = "User is null.";
+                        return RedirectToAction(nameof(ProductController.Index), ControllerNames.Product);
+                    }
+                    else
+                    {
+                        ViewData["IsProfilePage"] = true;
+                        return View(user);
+                    }
+
+                }
+                TempData["ErrorMessage"] = "Api get user is invalid.";
+                return RedirectToAction(nameof(Index), "Product");
+            }
+
+            TempData["ErrorMessage"] = msg;
+            return RedirectToAction("Login", "User");
         }
 
         [HttpPost]
-        public async Task<IActionResult> EditProfile(EditProfileRequest editProfileRequest)
+        public async Task<IActionResult> EditProfile(UserMdl userMdl, IFormFile? avatarFile)
         {
+            ModelState.Remove("Id");
             if (!ModelState.IsValid)
             {
-                return View(editProfileRequest);
+                return View(userMdl);
             }
 
-            var client = _httpClientFactory.CreateClient("ProductApi");
-            var content = new StringContent(JsonConvert.SerializeObject(editProfileRequest), Encoding.UTF8, "application/json");
-            var response = await client.PutAsync($"api/user/edit-profile", content);
-            // var response = await client.PutAsync($"api/user/edit-profile/{editProfileRequest.Id}", content);
-            var responseContent = await response.Content.ReadAsStringAsync();
-
-            try
+            // Handle avatar upload if file is present
+            if (avatarFile != null && avatarFile.Length > 0)
             {
+                var hash = _methodCommon.ComputeFileHash(avatarFile);
+                var fileName = $"{hash}{Path.GetExtension(avatarFile.FileName)}";
+                var uploadPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/uploads/avatars");
+                Directory.CreateDirectory(uploadPath);
+                var filePath = Path.Combine(uploadPath, fileName);
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await avatarFile.CopyToAsync(stream);
+                }
+
+                userMdl.AvatarUrl = $"/uploads/avatars/{fileName}";
+            }
+
+            var client = _httpClientFactory.CreateClient("WebAppApi");
+            var token = Request.Cookies["JwtToken"];
+            var validToken = TokenValidator.IsTokenValid(token, out var msg);
+            if (validToken)
+            {
+                // Add token to the header if valid
+                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+                var handler = new JwtSecurityTokenHandler();
+                var jwtToken = handler.ReadJwtToken(token);
+
+                var userId = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Jti)?.Value;
+                userMdl.Id = userId;
+
+                var content = new StringContent(JsonConvert.SerializeObject(userMdl), Encoding.UTF8, "application/json");
+                var response = await client.PutAsync($"api/user/edit-profile", content);
+                var jsonResult = await response.Content.ReadAsStringAsync();
+
                 if (response.IsSuccessStatusCode)
                 {
-                    var jsonObject = JObject.Parse(responseContent);
-                    var message = JObject.Parse(responseContent)["message"]?.ToString();
+                    var data = JObject.Parse(jsonResult)["data"]?.ToString();
+                    var user = JsonConvert.DeserializeObject<UserResponse>(data ?? string.Empty);
+
+                    var fullNameCookieOptions = new CookieOptions
+                    {
+                        HttpOnly = false,
+                        Expires = DateTimeOffset.UtcNow.AddMinutes(30)
+                    };
+                    Response.Cookies.Append("FullName", user?.FullName ?? "Guest", fullNameCookieOptions);
+
+                    var AvatarUrlCookieOptions = new CookieOptions
+                    {
+                        HttpOnly = false,
+                        Expires = DateTimeOffset.UtcNow.AddMinutes(30)
+                    };
+                    Response.Cookies.Append("AvatarUrl", user?.AvatarUrl ?? "~/images/default_avatar.png", AvatarUrlCookieOptions);
+
+                    var message = JObject.Parse(jsonResult)["message"]?.ToString();
                     TempData["SuccessMessage"] = message;
-                    return RedirectToAction("Index", "Product");
+                    return RedirectToAction(nameof(Profile));
                 }
                 else
                 {
-                    TempData["ErrorMessage"] = responseContent.ToString();
-                    return View(editProfileRequest);
+                    TempData["ErrorMessage"] = "Api error occurred.";
+                    return RedirectToAction("Profile");
                 }
             }
-            catch (JsonReaderException)
+
+            TempData["ErrorMessage"] = msg;
+            return RedirectToAction("Login", "User");
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> UploadAvatar(IFormFile avatar)
+        {
+            if (avatar == null || avatar.Length == 0)
             {
-                TempData["ErrorMessage"] = responseContent;
-                return View(editProfileRequest);
+                TempData["ErrorMessage"] = "No file selected.";
+                return RedirectToAction("Profile");
             }
+
+            var fileName = $"{Guid.NewGuid()}{Path.GetExtension(avatar.FileName)}";
+            var uploadPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/uploads/avatars");
+            Directory.CreateDirectory(uploadPath); // Sure the directory exists
+
+            var filePath = Path.Combine(uploadPath, fileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await avatar.CopyToAsync(stream);
+            }
+
+            var relativePath = $"/uploads/avatars/{fileName}";
+
+            // Lưu path này vào DB cho user (ví dụ gọi API edit-profile)
+
+            TempData["SuccessMessage"] = "Avatar updated.";
+            return RedirectToAction("Profile");
         }
     }
 }

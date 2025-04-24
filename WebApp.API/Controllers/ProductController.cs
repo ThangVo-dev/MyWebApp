@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WebApp.Data.Entities;
-using WebApp.Service.Enums;
 using WebApp.Shared.Requests;
 
 namespace WebApp.API.Controllers
@@ -50,10 +49,10 @@ namespace WebApp.API.Controllers
 
         // PUT: api/Product/5
         [HttpPut]
-        [Route("update/{id}")]
-        public async Task<IActionResult> UpdateProduct(string id, ProductRequest productRequest)
+        [Route("edit")]
+        public async Task<IActionResult> Edit(ProductRequest productRequest)
         {
-            var productService = await _productService.UpdateProductAsync(id, productRequest);
+            var productService = await _productService.UpdateProductAsync(productRequest);
             return productService;
         }
 

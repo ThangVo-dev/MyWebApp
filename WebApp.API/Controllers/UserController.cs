@@ -1,6 +1,8 @@
 using AppWeb.Service.API;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WebApp.Shared.Models.Requests;
+using WebApp.Shared.Models.User;
 
 [ApiController]
 [Route("api/user")]
@@ -23,6 +25,7 @@ public class UserController : ControllerBase
         return result;
     }
 
+    [Authorize(AuthenticationSchemes = "Bearer")]
     [HttpGet]
     [Route("get/{id}")]
     public async Task<IActionResult> GetUserById(string? id)
@@ -31,11 +34,12 @@ public class UserController : ControllerBase
         return result;
     }
 
+    [Authorize(AuthenticationSchemes = "Bearer")]
     [HttpPut]
-    [Route("edit-profile/{id}")]
-    public async Task<IActionResult> UpdateProfile(string? id, [FromBody] EditProfileRequest request)
+    [Route("edit-profile")]
+    public async Task<IActionResult> UpdateProfile([FromBody] UserMdl request)
     {
-        var result = await _userService.UpdateProfileAsync(id, request);
+        var result = await _userService.UpdateProfileAsync(request);
         return result;
     }
 }

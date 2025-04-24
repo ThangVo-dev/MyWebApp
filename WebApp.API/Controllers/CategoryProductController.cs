@@ -2,107 +2,68 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WebApp.Data.Entities;
+using WebApp.Service.API;
+using WebApp.Shared.Models.Category;
 
 namespace WebApp.API.Controllers
 {
-    [Authorize]
+    [Authorize(AuthenticationSchemes = "Bearer")]
     [Route("api/categoryproduct")]
     [ApiController]
     public class CategoryProductController : ControllerBase
     {
         private readonly WebAppContext _context;
+        private readonly CategoryProdService _categoryProdService;
 
-        public CategoryProductController(WebAppContext context)
+        public CategoryProductController(WebAppContext context, CategoryProdService categoryProdService)
         {
+            _categoryProdService = categoryProdService;
             _context = context;
         }
 
         // GET: api/CategoryProduct
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<CategoryProduct>>> GetCategoryProducts()
+        [Route("get-all")]
+        public async Task<IActionResult> GetCategoryProducts()
         {
-            return await _context.CategoryProducts.ToListAsync();
+            var categoryProducts = await _categoryProdService.GetAllAsync();
+            return categoryProducts;
         }
 
         // GET: api/CategoryProduct/5
-        [HttpGet("{id}")]
-        public async Task<ActionResult<CategoryProduct>> GetCategoryProduct(string id)
+        [HttpGet]
+        [Route("get/{id}")]
+        public async Task<IActionResult> GetCategoryProduct(string id)
         {
-            var categoryProduct = await _context.CategoryProducts.FirstOrDefaultAsync(c => c.Id == id);
-
-            if (categoryProduct == null)
-            {
-                return NotFound();
-            }
-
+            var categoryProduct = await _categoryProdService.GetByIdAsync(id);
             return categoryProduct;
         }
 
         // POST: api/CategoryProduct
         [HttpPost]
-        [Route("Create")]
-        public async Task<ActionResult<CategoryProduct>> CreateCategoryProduct(CategoryProduct categoryProduct)
+        [Route("create")]
+        public async Task<IActionResult> CreateCategoryProduct(CategoryProductMdl categoryProduct)
         {
-            if (categoryProduct == null)
-            {
-                return BadRequest();
-            }
-
-            _context.CategoryProducts.Add(categoryProduct);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetCategoryProduct), new { id = categoryProduct.Id }, categoryProduct);
+            var result = await _categoryProdService.CreateAsync(categoryProduct);
+            return result;
         }
 
         // PUT: api/CategoryProduct/5
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateCategoryProduct(string id, CategoryProduct categoryProduct)
+        [HttpPut]
+        [Route("update")]
+        public async Task<IActionResult> UpdateCategoryProduct(CategoryProductMdl categoryProduct)
         {
-            if (id != categoryProduct.Id)
-            {
-                return BadRequest();
-            }
-
-            _context.Entry(categoryProduct).State = EntityState.Modified;
-
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!CategoryProductExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-
-            return NoContent();
+            var result = await _categoryProdService.UpdateAsync(categoryProduct);
+            return result;
         }
 
         // DELETE: api/CategoryProduct/5
-        [HttpDelete("{id}")]
+        [HttpDelete]
+        [Route("delete/{id}")]
         public async Task<IActionResult> DeleteCategoryProduct(string id)
         {
-            var categoryProduct = await _context.CategoryProducts.FindAsync(id);
-            if (categoryProduct == null)
-            {
-                return NotFound();
-            }
-
-            _context.CategoryProducts.Remove(categoryProduct);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
-        }
-
-        private bool CategoryProductExists(string id)
-        {
-            return _context.CategoryProducts.Any(e => e.Id == id);
+            var result = await _categoryProdService.DeleteAsync(id);
+            return result;
         }
     }
 }

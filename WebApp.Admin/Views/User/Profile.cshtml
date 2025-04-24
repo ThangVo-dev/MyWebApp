@@ -1,0 +1,83 @@
+@model WebApp.Shared.Models.User.UserMdl
+
+@{
+    ViewData["Title"] = "Profile";
+}
+
+<div class="container mt-5">
+    <div class="card shadow-sm p-4">
+        <h2 class="mb-4"><i class="bi bi-person"></i> Profile</h2>
+        <form asp-action="EditProfile" method="post" enctype="multipart/form-data">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label asp-for="FirstName" class="form-label"></label>
+                        <input asp-for="FirstName" class="form-control" />
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="LastName" class="form-label"></label>
+                        <input asp-for="LastName" class="form-control" />
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="FullName" class="form-label"></label>
+                        <input asp-for="FullName" class="form-control" />
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="Language" class="form-label"></label>
+                        <select asp-for="Language" class="form-select" asp-items="ViewBag.LanguageList"></select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label asp-for="PhoneNumber" class="form-label"></label>
+                        <input asp-for="PhoneNumber" class="form-control" />
+                        <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="Email" class="form-label"></label>
+                        <input asp-for="Email" class="form-control" readonly />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Password</label><br />
+                        <a class="btn btn-primary" asp-action="ChangePassword">Change password</a>
+                    </div>
+                    <div class="d-flex justify-content-center align-items-center" style="height: 200px;">
+                        <div class="position-relative">
+                            <div style="padding: 3px; border: 3px solid #0d6efd; border-radius: 50%; display: inline-block;">
+                                <img src="@Model.AvatarUrl" id="avatarImg" class="rounded-circle"
+                                     style="width: 150px; height: 150px; object-fit: cover; background-color: #1a1e3a;" />
+                            </div>
+                            <label for="avatarInput"
+                                class="btn btn-sm btn-primary position-absolute bottom-0 end-0 rounded-circle"
+                                title="Change Photo" style="cursor: pointer;">
+                                <i class="bi bi-pencil"></i>
+                            </label>
+                            <input name="avatarFile" type="file" id="avatarInput" accept="image/*" style="display: none;"
+                                onChange="previewAvatar(this)" />
+                            <input type="hidden" name="AvatarUrl" value="@Model.AvatarUrl" />
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-end mt-4">
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+    <script>
+        function previewAvatar(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    document.getElementById('avatarImg').src = e.target.result;
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+    </script>
+}

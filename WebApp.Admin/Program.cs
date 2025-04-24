@@ -1,13 +1,20 @@
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using WebApp.Shared.Helpers;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
-builder.Services.AddHttpClient("ProductApi", client =>
+
+// Dependency Injection
+builder.Services.AddScoped<MethodCommon>();
+
+builder.Services.AddHttpClient("WebAppApi", client =>
 {
-    client.BaseAddress = new Uri("https://localhost:7160/");
+    var baseAddress = Environment.GetEnvironmentVariable("PRODUCT_API_BASE_URL") 
+    ?? builder.Configuration["PRODUCT_API_BASE_URL"];
+    client.BaseAddress = new Uri(baseAddress ?? "null or empty");
     client.DefaultRequestHeaders.Add("Accept", "application/json");
 });
 
@@ -15,7 +22,7 @@ builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = TimeSpan.FromMinutes(60);
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
 });
@@ -29,15 +36,15 @@ builder.Services.AddAuthentication(options =>
 .AddCookie()
 .AddGoogle(options =>
 {
-    options.ClientId = builder.Configuration["Authentication:Google:ClientId"];
-    options.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
+    options.ClientId = builder.Configuration["Authentication:Google:ClientId"] ?? "null or empty";
+    options.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"] ?? "null or empty";
     options.SaveTokens = true;
     options.CallbackPath = "/signin-google";
 })
 .AddFacebook(options =>
 {
-    options.AppId = builder.Configuration["Authentication:Facebook:AppId"];
-    options.AppSecret = builder.Configuration["Authentication:Facebook:AppSecret"];
+    options.AppId = builder.Configuration["Authentication:Facebook:AppId"] ?? "null or empty";
+    options.AppSecret = builder.Configuration["Authentication:Facebook:AppSecret"] ?? "null or empty";
     options.SaveTokens = true;
     options.CallbackPath = "/signin-facebook";
 });

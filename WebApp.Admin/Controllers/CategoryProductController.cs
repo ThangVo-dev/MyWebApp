@@ -1,19 +1,18 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using System.Text;
 using WebApp.Admin.Models;
-using WebApp.Shared.Responses;
+using WebApp.Data.Entities;
+using WebApp.Shared.Models.Category;
 
-namespace WebApp.MVC.Controllers
+namespace WebApp.Admin.Controllers
 {
-    public class ProductController : Controller
+    public class CategoryProductController : Controller
     {
         private readonly IHttpClientFactory _httpClientFactory;
 
-
-        public ProductController(IHttpClientFactory httpClientFactory)
+        public CategoryProductController(IHttpClientFactory httpClientFactory)
         {
             _httpClientFactory = httpClientFactory;
         }
@@ -22,7 +21,6 @@ namespace WebApp.MVC.Controllers
         public async Task<IActionResult> Index()
         {
             var client = _httpClientFactory.CreateClient("WebAppApi");
-            // var token = HttpContext.Session.GetString("JwtToken");
             var token = Request.Cookies["JwtToken"];
 
             var validToken = TokenValidator.IsTokenValid(token, out var msg);
@@ -32,15 +30,15 @@ namespace WebApp.MVC.Controllers
                 // Add token to the header if valid
                 client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-                var response = await client.GetAsync("api/product/get-all");
+                var response = await client.GetAsync("api/categoryproduct/get-all");
                 if (response.IsSuccessStatusCode)
                 {
                     var jsonResult = await response.Content.ReadAsStringAsync();
                     var data = JObject.Parse(jsonResult)["data"]?.ToString();
 
-                    var products = JsonConvert.DeserializeObject<List<ProductViewModel>>(data ?? string.Empty);
+                    var categoryProducts = JsonConvert.DeserializeObject<List<CategoryProductVM>>(data ?? string.Empty);
 
-                    return View(products);
+                    return View(categoryProducts);
                 }
             }
             TempData["ErrorMessage"] = msg;
@@ -59,23 +57,24 @@ namespace WebApp.MVC.Controllers
             {
                 // Add token to the header if valid
                 client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-                var response = await client.GetAsync($"api/product/get/{id}");
-
+                var response = await client.GetAsync($"api/categoryproduct/get/{id}");
                 if (response.IsSuccessStatusCode)
                 {
                     var jsonResult = await response.Content.ReadAsStringAsync();
                     var data = JObject.Parse(jsonResult)["data"]?.ToString();
-                    var product = JsonConvert.DeserializeObject<ProductViewModel>(data ?? string.Empty);
-                    return View(product);
+
+                    var categoryProduct = JsonConvert.DeserializeObject<CategoryProductVM>(data ?? string.Empty);
+
+                    TempData["SuccessMessage"] = msg;
+                    return View(categoryProduct);
                 }
             }
-
             TempData["ErrorMessage"] = msg;
             return RedirectToAction("Login", "User");
         }
 
         [HttpGet]
-        public async Task<IActionResult> Create()
+        public IActionResult Create()
         {
             var client = _httpClientFactory.CreateClient("WebAppApi");
             var token = Request.Cookies["JwtToken"];
@@ -84,51 +83,56 @@ namespace WebApp.MVC.Controllers
             {
                 // Add token to the header if valid
                 client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-                var selectListCategory = await GetSelectListOfCategory();
-                if (selectListCategory != null)
-                {
-                    ViewBag.Categories = selectListCategory;
-                }
-                else
-                {
-                    ViewBag.Categories = new SelectList(new List<SelectListItem>(), "Value", "Text");
-                }
+                return View();
             }
             else
             {
                 TempData["ErrorMessage"] = msg;
                 return RedirectToAction("Login", "User");
             }
-
-            return View();
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create(ProductViewModel product)
+        public async Task<IActionResult> Create(CategoryProductMdl categoryProduct)
         {
             var client = _httpClientFactory.CreateClient("WebAppApi");
             var token = Request.Cookies["JwtToken"];
+
             var validToken = TokenValidator.IsTokenValid(token, out var msg);
+
             if (validToken)
             {
                 // Add token to the header if valid
                 client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-                product.Id = Guid.NewGuid().ToString();
                 ModelState.Remove("Id");
                 if (ModelState.IsValid)
                 {
-                    var content = new StringContent(JsonConvert.SerializeObject(product), Encoding.UTF8, "application/json");
-                    var response = await client.PostAsync("api/product/create", content);
+                    categoryProduct.Id = Guid.NewGuid().ToString();
+                    var jsonContent = JsonConvert.SerializeObject(categoryProduct);
+                    var content = new StringContent(jsonContent, System.Text.Encoding.UTF8, "application/json");
+
+                    var response = await client.PostAsync("api/categoryproduct/create", content);
                     if (response.IsSuccessStatusCode)
                     {
+                        var jsonResult = await response.Content.ReadAsStringAsync();
+                        var message = JObject.Parse(jsonResult)["message"]?.ToString();
+                        TempData["SuccessMessage"] = message;
                         return RedirectToAction(nameof(Index));
                     }
+                    else
+                    {
+                        TempData["ErrorMessage"] = "Api call failed.";
+                        return View(categoryProduct);
+                    }
+                }
+                else
+                {
+                    TempData["ErrorMessage"] = "Input data is not valid.";
+                    return View(categoryProduct);
                 }
 
-                return View(product);
             }
-
             TempData["ErrorMessage"] = msg;
             return RedirectToAction("Login", "User");
         }
@@ -145,25 +149,15 @@ namespace WebApp.MVC.Controllers
             {
                 // Add token to the header if valid
                 client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-                var response = await client.GetAsync($"api/product/get/{id}");
-
+                var response = await client.GetAsync($"api/categoryproduct/get/{id}");
                 if (response.IsSuccessStatusCode)
                 {
                     var jsonResult = await response.Content.ReadAsStringAsync();
                     var data = JObject.Parse(jsonResult)["data"]?.ToString();
-                    var product = JsonConvert.DeserializeObject<ProductResponse>(data ?? string.Empty);
 
-                    var selectListCategory = await GetSelectListOfCategory();
-                    if (selectListCategory != null)
-                    {
-                        ViewBag.Categories = selectListCategory;
-                    }
-                    else
-                    {
-                        ViewBag.Categories = new SelectList(new List<SelectListItem>(), "Value", "Text");
-                    }
+                    var categoryProduct = JsonConvert.DeserializeObject<CategoryProductMdl>(data ?? string.Empty);
 
-                    return View(product);
+                    return View(categoryProduct);
                 }
             }
 
@@ -172,65 +166,7 @@ namespace WebApp.MVC.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Edit(ProductViewModel product)
-        {
-            var token = Request.Cookies["JwtToken"];
-            var validToken = TokenValidator.IsTokenValid(token, out var msg);
-            if (validToken)
-            {
-                var client = _httpClientFactory.CreateClient("WebAppApi");
-                // Add token to the header if valid
-                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-                if (ModelState.IsValid)
-                {
-                    var content = new StringContent(JsonConvert.SerializeObject(product), Encoding.UTF8, "application/json");
-                    var response = await client.PutAsync($"api/product/edit", content);
-                    if (response.IsSuccessStatusCode)
-                    {
-                        var jsonResult = await response.Content.ReadAsStringAsync();
-                        var message = JObject.Parse(jsonResult)["message"]?.ToString();
-                        TempData["SuccessMessage"] = message;
-                        return RedirectToAction(nameof(Index));
-                    }
-                    else
-                    {
-                        TempData["ErrorMessage"] = "Api call failed.";
-                        return View(product);
-                    }
-                }
-                else
-                {
-                    TempData["ErrorMessage"] = "Input data is not valid.";
-                    return View(product);
-                }
-            }
-
-            TempData["ErrorMessage"] = msg;
-            return RedirectToAction("Login", "User");
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> DeleteConfirmed(string id)
-        {
-            var token = Request.Cookies["JwtToken"];
-            var validToken = TokenValidator.IsTokenValid(token, out var msg);
-            if (validToken)
-            {
-                // Add token to the header if valid
-                var client = _httpClientFactory.CreateClient("WebAppApi");
-                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-                
-                var response = await client.DeleteAsync($"api/product/delete/{id}");
-                if (response.IsSuccessStatusCode)
-                {
-                    TempData["SuccessMessage"] = "Product deleted successfully.";
-                    return RedirectToAction(nameof(Index));
-                }
-            }
-            return NotFound();
-        }
-
-        private async Task<List<SelectListItem>?> GetSelectListOfCategory()
+        public async Task<IActionResult> Edit(CategoryProductMdl categoryProduct)
         {
             var client = _httpClientFactory.CreateClient("WebAppApi");
             var token = Request.Cookies["JwtToken"];
@@ -241,24 +177,46 @@ namespace WebApp.MVC.Controllers
             {
                 // Add token to the header if valid
                 client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                var jsonContent = JsonConvert.SerializeObject(categoryProduct);
+                var content = new StringContent(jsonContent, System.Text.Encoding.UTF8, "application/json");
 
-                var response = await client.GetAsync("api/categoryproduct/get-all");
-
+                var response = await client.PutAsync("api/categoryproduct/update", content);
                 if (response.IsSuccessStatusCode)
                 {
                     var jsonResult = await response.Content.ReadAsStringAsync();
-                    var data = JObject.Parse(jsonResult)["data"]?.ToString();
-                    var categoriesData = JsonConvert.DeserializeObject<List<CategoryProductVM>>(data ?? string.Empty);
-
-                    return categoriesData?.Select(c => new SelectListItem
-                    {
-                        Value = c.Id,
-                        Text = c.Name
-                    }).ToList();
+                    var message = JObject.Parse(jsonResult)["message"]?.ToString();
+                    TempData["SuccessMessage"] = message;
+                    return RedirectToAction("Index");
                 }
             }
 
-            return null;
+            TempData["ErrorMessage"] = msg;
+            return RedirectToAction("Login", "User");
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Delete(string id)
+        {
+            var client = _httpClientFactory.CreateClient("WebAppApi");
+            var token = Request.Cookies["JwtToken"];
+
+            var validToken = TokenValidator.IsTokenValid(token, out var msg);
+
+            if (validToken)
+            {
+                // Add token to the header if valid
+                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                var response = await client.DeleteAsync($"api/categoryproduct/delete/{id}");
+                if (response.IsSuccessStatusCode)
+                {
+                    var jsonResult = await response.Content.ReadAsStringAsync();
+                    var message = JObject.Parse(jsonResult)["message"]?.ToString();
+                    TempData["SuccessMessage"] = message;
+                    return RedirectToAction("Index");
+                }
+            }
+            TempData["ErrorMessage"] = msg;
+            return RedirectToAction("Login", "User");
         }
     }
 }

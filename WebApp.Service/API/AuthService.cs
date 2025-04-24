@@ -1,11 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
-using System.Threading.Tasks;
 using WebApp.Data.Entities;
 using WebApp.Service.Common;
 using WebApp.Service.Enums;
@@ -36,7 +31,7 @@ namespace AppWeb.Service.API
                 var authResult = new ApiResult<TokenResponse>();
                 if (loginRequest != null && loginRequest.Username != null && loginRequest.Password != null)
                 {
-                    var user = await _context.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.UserName == loginRequest.Username && u.PasswordHash == loginRequest.Password);
+                    var user = await _context.Users.FirstOrDefaultAsync(u => u.UserName == loginRequest.Username && u.PasswordHash == loginRequest.Password);
                     if (user == null)
                     {
                         authResult.StatusCode = ApiStatusCode.Unauthorized;
@@ -46,12 +41,13 @@ namespace AppWeb.Service.API
                     {
                         var claimJWTToken = new ClaimJWTToken
                         {
+                            Id = user.Id,
                             Username = loginRequest.Username,
                             Role = user.Role?.Name,
                             Issuer = _configuration["JwtSettings:Issuer"],
                             Audience = _configuration["JwtSettings:Audience"],
                             SigningKey = _configuration["JwtSettings:IssuerSigningKey"],
-                            ExpirationMinutes = 60,
+                            ExpirationMinutes = 30,
                             FullName = user.FullName,
                             PhoneNumber = user.PhoneNumber,
                             Email = user.Email

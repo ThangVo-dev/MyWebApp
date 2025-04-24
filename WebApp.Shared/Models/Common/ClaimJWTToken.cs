@@ -2,6 +2,7 @@ namespace WebApp.Shared.Models.Common
 {
     public class ClaimJWTToken
     {
+        public string? Id { get; set; }
         public string? Username { get; set; }
         public string? Role { get; set; }
         public string? Issuer { get; set; }

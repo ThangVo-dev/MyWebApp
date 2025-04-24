@@ -24,8 +24,8 @@ namespace WebApp.Service.Common
 
             var claims = new[]
             {
+                new Claim(JwtRegisteredClaimNames.Jti, claimJWTToken.Id ?? string.Empty),
                 new Claim(JwtRegisteredClaimNames.Sub, claimJWTToken.Username ?? string.Empty),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                 new Claim(ClaimTypes.Role, claimJWTToken.Role ?? string.Empty),
                 new Claim("FullName", claimJWTToken.FullName ?? string.Empty),
                 new Claim("PhoneNumber", claimJWTToken.PhoneNumber ?? string.Empty),
